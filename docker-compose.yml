@@ -33,11 +33,11 @@ services:
     environment:
       - PORT=3002
       - NATS_SERVERS=${NATS_SERVERS}
-      - DATABASE_URL=postgresql://postgres:password123$@ordes-db:5432/orders?schema=public
+      - DATABASE_URL=postgresql://postgres:password123$@orders-db:5432/orders?schema=public
     depends_on:
       - orders-db
 
-  ordes-db:
+  orders-db:
     container_name: orders_database
     image: postgres:16.2
     restart: always
