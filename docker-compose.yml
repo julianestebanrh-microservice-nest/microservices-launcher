@@ -1,9 +1,11 @@
 services:
+  # Nats Server
   nats-server:
     image: nats:latest
     ports:
       - 8222:8222
 
+  # Cliente Gateway
   client-gateway:
     build: ./client-gateway
     ports:
@@ -15,6 +17,7 @@ services:
       - PORT=3000
       - NATS_SERVERS=${NATS_SERVERS}
 
+  # Product Application
   products-ms:
     build: ./products-ms
     volumes:
@@ -25,6 +28,7 @@ services:
       - NATS_SERVERS=${NATS_SERVERS}
       - DATABASE_URL=file:./dev.db
 
+  # Order Application
   orders-ms:
     build: ./orders-ms
     volumes:
@@ -37,6 +41,7 @@ services:
     depends_on:
       - orders-db
 
+  # Order Database
   orders-db:
     container_name: orders_database
     image: postgres:16.2
@@ -50,6 +55,7 @@ services:
       - POSTGRES_PASSWORD=password123$
       - POSTGRES_DB=orders
 
+  # Payment Application
   payments-ms:
     build: ./payments-ms
     volumes:
