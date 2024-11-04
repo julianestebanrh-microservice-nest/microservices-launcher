@@ -3,41 +3,44 @@ services:
   nats-server:
     image: nats:latest
     ports:
-      - 8222:8222
+      - ${NATS_SERVER_PORT}:8222
 
   # Cliente Gateway
   client-gateway:
     build: ./client-gateway
+    restart: always
     ports:
-      - ${CLIENT_GATEWAY_PORT}:3000
+      - ${CLIENT_GATEWAY_OUTPORT}:${CLIENT_GATEWAY_INPORT}
     volumes:
       - ./client-gateway/src:/usr/src/app/src
     command: npm run start:dev
     environment:
-      - PORT=3000
-      - NATS_SERVERS=${NATS_SERVERS}
+      PORT: ${CLIENT_GATEWAY_INPORT}
+      NATS_SERVERS: ${NATS_SERVERS}
 
   # Product Application
   products-ms:
     build: ./products-ms
+    restart: always
     volumes:
       - ./products-ms/src:/usr/src/app/src
     command: npm run start:dev
     environment:
-      - PORT=3001
-      - NATS_SERVERS=${NATS_SERVERS}
-      - DATABASE_URL=file:./dev.db
+      PORT: ${PRODUCTS_MS_INPORT}
+      NATS_SERVERS: ${NATS_SERVERS}
+      DATABASE_URL: ${PRODUCTS_MS_DATABASE_URL}
 
   # Order Application
   orders-ms:
     build: ./orders-ms
+    restart: always
     volumes:
       - ./orders-ms/src:/usr/src/app/src
     command: npm run start:dev
     environment:
-      - PORT=3002
-      - NATS_SERVERS=${NATS_SERVERS}
-      - DATABASE_URL=postgresql://postgres:password123$@orders-db:5432/orders?schema=public
+      PORT: ${ORDER_MS_INPORT}
+      NATS_SERVERS: ${NATS_SERVERS}
+      DATABASE_URL: ${ORDER_MS_DATABASE_URL}
     depends_on:
       - orders-db
 
@@ -49,24 +52,49 @@ services:
     volumes:
       - ./orders-ms/postgres:/var/lib/postgresql/data
     ports:
-      - 6432:5432
+      - ${ORDER_DATABASE_POSTGRES_OUTPORT}:5432
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password123$
-      - POSTGRES_DB=orders
+      POSTGRES_USER: ${ORDER_DATABASE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${ORDER_DATABASE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${ORDER_DATABASE_POSTGRES_DB}
 
   # Payment Application
   payments-ms:
     build: ./payments-ms
+    restart: always
     volumes:
       - ./payments-ms/src:/usr/src/app/src
     command: npm run start:dev
     ports:
-      - ${PAYMENT_MS_PORT}:3003
+      - ${PAYMENT_MS_OUTPORT}:${PAYMENT_MS_INPORT}
     environment:
-      - PORT=${PAYMENT_MS_PORT}
-      - NATS_SERVERS=${NATS_SERVERS}
-      - STRIPE_SECRET=${STRIPE_SECRET}
-      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}
-      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}
-      - STRIPE_ENDPOINT_SECRET=${STRIPE_ENDPOINT_SECRET}
+      PORT: ${PAYMENT_MS_INPORT}
+      NATS_SERVERS: ${NATS_SERVERS}
+      STRIPE_SECRET: ${PAYMENT_MS_STRIPE_SECRET}
+      STRIPE_SUCCESS_URL: ${PAYMENT_MS_STRIPE_SUCCESS_URL}
+      STRIPE_CANCEL_URL: ${PAYMENT_MS_STRIPE_CANCEL_URL}
+      STRIPE_ENDPOINT_SECRET: ${PAYMENT_MS_STRIPE_ENDPOINT_SECRET}
+
+  # Authentication Application
+  authentication-ms:
+    build: ./authentication-ms
+    command: npm run start:dev
+    ports:
+      - ${AUTH_MS_OUTPORT}:${AUTH_MS_INPORT}
+    environment:
+      PORT: ${AUTH_MS_INPORT}
+      NATS_SERVERS: ${NATS_SERVERS}
+      DATABASE_URL: ${AUTH_MS_DATABASE_URL}
+      JWT_SECRET: ${AUTH_MS_JWT_SECRET}
+
+  # Authentication Database
+  authentication-db:
+    image: mongo:latest
+    restart: always
+    ports:
+      - ${AUTH_DATABASE_MONGO_OUTPORT}:27017
+    volumes:
+      - ./authentication-ms/mongo:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${AUTH_DATABASE_MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${AUTH_DATABASE_MONGO_PASSWORD}
