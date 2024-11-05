@@ -7,24 +7,39 @@ services:
 
   # Cliente Gateway
   client-gateway:
-    build: ./client-gateway
+    build:
+      context: ./client-gateway
+      dockerfile: dockerfile.prod
+    image: client-gateway
+    # image: <docker register>client-gateway
     restart: always
     ports:
       - ${CLIENT_GATEWAY_OUTPORT}:${CLIENT_GATEWAY_INPORT}
-    volumes:
-      - ./client-gateway/src:/usr/src/app/src
-    command: npm run start:dev
     environment:
       - PORT=${CLIENT_GATEWAY_INPORT}
       - NATS_SERVERS=${NATS_SERVERS}
 
+  # Authentication Application
+  authentication-ms:
+    build:
+      context: ./authentication-ms
+      dockerfile: dockerfile.prod
+    image: authentication-ms
+    ports:
+      - ${AUTH_MS_OUTPORT}:${AUTH_MS_INPORT}
+    environment:
+      - PORT=${AUTH_MS_INPORT}
+      - NATS_SERVERS=${NATS_SERVERS}
+      - DATABASE_URL=${AUTH_MS_DATABASE_URL}
+      - JWT_SECRET=${AUTH_MS_JWT_SECRET}
+
   # Product Application
   products-ms:
-    build: ./products-ms
+    build:
+      context: ./products-ms
+      dockerfile: dockerfile.prod
+    image: products-ms
     restart: always
-    volumes:
-      - ./products-ms/src:/usr/src/app/src
-    command: npm run start:dev
     environment:
       - PORT=${PRODUCTS_MS_INPORT}
       - NATS_SERVERS=${NATS_SERVERS}
@@ -32,17 +47,35 @@ services:
 
   # Order Application
   orders-ms:
-    build: ./orders-ms
+    build:
+      context: ./orders-ms
+      dockerfile: dockerfile.prod
+      args:
+        - ORDER_MS_DATABASE_URL=${ORDER_MS_DATABASE_URL}
     restart: always
-    volumes:
-      - ./orders-ms/src:/usr/src/app/src
-    command: npm run start:dev
     environment:
       - PORT=${ORDER_MS_INPORT}
       - NATS_SERVERS=${NATS_SERVERS}
       - DATABASE_URL=${ORDER_MS_DATABASE_URL}
     depends_on:
       - orders-db
+
+  # Payment Application
+  payments-ms:
+    build:
+      context: ./payments-ms
+      dockerfile: dockerfile.prod
+    image: payments-ms
+    restart: always
+    ports:
+      - ${PAYMENT_MS_OUTPORT}:${PAYMENT_MS_INPORT}
+    environment:
+      - PORT=${PAYMENT_MS_INPORT}
+      - NATS_SERVERS=${NATS_SERVERS}
+      - STRIPE_SECRET=${PAYMENT_MS_STRIPE_SECRET}
+      - STRIPE_SUCCESS_URL=${PAYMENT_MS_STRIPE_SUCCESS_URL}
+      - STRIPE_CANCEL_URL=${PAYMENT_MS_STRIPE_CANCEL_URL}
+      - STRIPE_ENDPOINT_SECRET=${PAYMENT_MS_STRIPE_ENDPOINT_SECRET}
 
   # Order Database
   orders-db:
@@ -57,35 +90,6 @@ services:
       - POSTGRES_USER=${ORDER_DATABASE_POSTGRES_USER}
       - POSTGRES_PASSWORD=${ORDER_DATABASE_POSTGRES_PASSWORD}
       - POSTGRES_DB=${ORDER_DATABASE_POSTGRES_DB}
-
-  # Payment Application
-  payments-ms:
-    build: ./payments-ms
-    restart: always
-    volumes:
-      - ./payments-ms/src:/usr/src/app/src
-    command: npm run start:dev
-    ports:
-      - ${PAYMENT_MS_OUTPORT}:${PAYMENT_MS_INPORT}
-    environment:
-      - PORT=${PAYMENT_MS_INPORT}
-      - NATS_SERVERS=${NATS_SERVERS}
-      - STRIPE_SECRET=${PAYMENT_MS_STRIPE_SECRET}
-      - STRIPE_SUCCESS_URL=${PAYMENT_MS_STRIPE_SUCCESS_URL}
-      - STRIPE_CANCEL_URL=${PAYMENT_MS_STRIPE_CANCEL_URL}
-      - STRIPE_ENDPOINT_SECRET=${PAYMENT_MS_STRIPE_ENDPOINT_SECRET}
-
-  # Authentication Application
-  authentication-ms:
-    build: ./authentication-ms
-    command: npm run start:dev
-    ports:
-      - ${AUTH_MS_OUTPORT}:${AUTH_MS_INPORT}
-    environment:
-      - PORT=${AUTH_MS_INPORT}
-      - NATS_SERVERS=${NATS_SERVERS}
-      - DATABASE_URL=${AUTH_MS_DATABASE_URL}
-      - JWT_SECRET=${AUTH_MS_JWT_SECRET}
 
   # Authentication Database
   authentication-db:
